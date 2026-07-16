@@ -3,9 +3,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../models/food_item_model.dart';
 import '../auth/login_screen.dart';
+import 'cart_screen.dart';
 
-class CustomerDashboard extends StatelessWidget {
+class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
+
+  @override
+  State<CustomerDashboard> createState() => _CustomerDashboardState();
+}
+
+class _CustomerDashboardState extends State<CustomerDashboard> {
+  List<FoodItemModel> cartItems = [];
+
+  void placeOrder(String address) async {
+    await FirebaseFirestore.instance.collection('orders').add({
+      'items': cartItems.map((item) => item.name).toList(),
+      'total': cartItems.fold(0.0, (sum, item) => sum + item.price),
+      'address': address, // Address yahan save ho raha hai
+      'status': 'pending',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    setState(() => cartItems.clear());
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Order placed successfully!")));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,43 +38,38 @@ class CustomerDashboard extends StatelessWidget {
         backgroundColor: Colors.deepOrange,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthViewModel().signOutUser();
-              if (!context.mounted) return;
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => CartScreen(cartItems: cartItems, onPlaceOrder: placeOrder)));
             },
-          )
+          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            await AuthViewModel().signOutUser();
+            if (!mounted) return;
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          })
         ],
       ),
-      // Firebase se saare food items real-time fetch karna
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('food_items').snapshots(),
+        stream: FirebaseFirestore.instance.collection('items').snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No food items available right now."));
-          }
-
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final foodDocs = snapshot.data!.docs;
-
           return ListView.builder(
-            padding: const EdgeInsets.all(12),
             itemCount: foodDocs.length,
             itemBuilder: (context, index) {
-              final data = foodDocs[index].data() as Map<String, dynamic>;
-              final foodItem = FoodItemModel.fromMap(data);
-
+              final foodItem = FoodItemModel.fromMap(foodDocs[index].data() as Map<String, dynamic>);
               return Card(
-                elevation: 4,
-                margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
-                  leading: const Icon(Icons.fastfood, color: Colors.deepOrange, size: 40),
-                  title: Text(foodItem.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(foodItem.description),
-                  trailing: Text("Rs. ${foodItem.price}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  title: Text(foodItem.name),
+                  subtitle: Text("Rs. ${foodItem.price}"),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.add_shopping_cart, color: Colors.deepOrange),
+                    onPressed: () {
+                      setState(() => cartItems.add(foodItem));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${foodItem.name} added!")));
+                    },
+                  ),
                 ),
               );
             },

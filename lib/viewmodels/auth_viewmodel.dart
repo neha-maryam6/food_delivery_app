@@ -9,15 +9,17 @@ import '../views/dashboards/rider_dashboard.dart';
 class AuthViewModel {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-b
+
   // Sahi Dashboard par bhejne ka function
   void redirectUser(String role, BuildContext context) {
     if (role == 'Customer') {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CustomerDashboard()));
-    } else if (role == 'Restaurant') {
+    } else if (role == 'Restaurant') { // Galti yahan theek kar di hai
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RestaurantDashboard()));
     } else if (role == 'Rider') {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RiderDashboard()));
+    } else {
+      print("Unknown role: $role");
     }
   }
 
@@ -27,7 +29,7 @@ b
     required String email,
     required String password,
     required String role,
-    required BuildContext context, // Context add kiya redirection ke liye
+    required BuildContext context,
   }) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -44,13 +46,15 @@ b
         role: role,
       );
 
+      // Data Firestore mein save karein
       await _firestore.collection('users').doc(uid).set(newUser.toMap());
 
-      // Kamyabi ke baad direct screen badal do
       if (context.mounted) {
         redirectUser(role, context);
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      return e.message; // Firebase ka asal error message return hoga
     } catch (e) {
       return e.toString();
     }
@@ -60,7 +64,7 @@ b
   Future<String?> loginUser({
     required String email,
     required String password,
-    required BuildContext context, // Context add kiya redirection ke liye
+    required BuildContext context,
   }) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -68,7 +72,6 @@ b
         password: password,
       );
 
-      // Database se user ka role check karna
       DocumentSnapshot userDoc = await _firestore
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -83,12 +86,13 @@ b
       } else {
         return "User data not found in database.";
       }
+    } on FirebaseAuthException catch (e) {
+      return e.message;
     } catch (e) {
       return e.toString();
     }
   }
 
-  // 3. Sign Out Logic
   Future<void> signOutUser() async {
     await _auth.signOut();
   }
