@@ -7,6 +7,7 @@ import 'cart_screen.dart';
 import 'order_tracking_screen.dart';
 import 'order_history_screen.dart';
 import 'profile_screen.dart';
+import 'rating_screen.dart';
 
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
@@ -59,6 +60,19 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         title: const Text("Delicious Food 🍕 (Lahore)"),
         backgroundColor: const Color(0xFF800000),
         actions: [
+          // Yahan orderId pass kar di hai taake error khatam ho jaye
+          IconButton(
+            icon: const Icon(Icons.star_rate),
+            tooltip: "Rate Us",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RatingScreen(orderId: "general_rating"),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: "Order History",
