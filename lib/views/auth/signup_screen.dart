@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth import kiya
 import '../../viewmodels/auth_viewmodel.dart';
 import 'login_screen.dart';
 
@@ -10,7 +11,6 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  // Yeh controllers aur variables class ke andar hona zaroori hain
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -21,7 +21,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final AuthViewModel _authViewModel = AuthViewModel();
   bool _isLoading = false;
 
-  // Sahi jagah par updated _handleSignUp function
   void _handleSignUp() async {
     if (_nameController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -42,13 +41,44 @@ class _SignupScreenState extends State<SignupScreen> {
       context: context,
     );
 
+    // --- Email Verification Step ---
+    if (error == null) {
+      try {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user != null && !user.emailVerified) {
+          await user.sendEmailVerification();
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Verification email sent! Please check your inbox 📧"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        // Agar email bhejne mein koi masla ho
+        debugPrint("Error sending verification email: $e");
+      }
+    }
+    // ---------------------------------
+
     setState(() {
       _isLoading = false;
     });
 
     if (error != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $error")),
+      );
+    } else {
+      if (!mounted) return;
+      // Signup kamyab hone ke baad user ko Login screen par bhej dein taake wo verify kar ke login kare
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
   }

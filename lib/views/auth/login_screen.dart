@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth import kiya
 import '../../viewmodels/auth_viewmodel.dart';
 import 'signup_screen.dart';
 
@@ -28,18 +29,41 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // Yahan context: context pass karna zaroori hai error khatam karne ke liye
     String? error = await _authViewModel.loginUser(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       context: context,
     );
 
+    // --- Security Feature: Email Verification Check ---
+    if (error == null) {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.emailVerified) {
+        // Agar email verify nahi hai toh sign out kar ke rok dein
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please verify your email before logging in! ❌"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+    // -------------------------------------------------
+
     setState(() {
       _isLoading = false;
     });
 
     if (error != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $error")),
       );
